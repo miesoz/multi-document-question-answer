@@ -1,69 +1,112 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
 import styles from "./page.module.css";
 
+type DocumentSummary = {
+  id: string;
+  title: string;
+  characters: number;
+  created_at: string;
+};
+
 export default function Home() {
+  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Runs once when the page first appears: ask the server for the list.
+  useEffect(() => {
+    fetch("/api/documents")
+      .then((response) => response.json())
+      .then(setDocuments)
+      .catch(() => setError("Could not load the documents."));
+  }, []);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); // stop the browser's default full-page reload
+    const form = event.currentTarget;
+    setError("");
+    setSaving(true);
+
+    const response = await fetch("/api/documents", {
+      method: "POST",
+      body: new FormData(form),
+    });
+    const result = await response.json();
+    setSaving(false);
+
+    if (!response.ok) {
+      setError(result.error);
+      return;
+    }
+    setDocuments((current) => [result, ...current]);
+    form.reset();
+  }
+
+  async function handleDelete(id: string) {
+    setError("");
+    const response = await fetch(`/api/documents/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+      setError("Could not delete the document.");
+      return;
+    }
+    setDocuments((current) => current.filter((doc) => doc.id !== id));
+  }
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>
-            To get started, edit the{" "}
-            <code className={styles.code}>page.tsx</code> file.
-          </h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className={styles.main}>
+      <h1>Multi-document Q&amp;A</h1>
+
+      <section>
+        <h2>Add a document</h2>
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <label>
+            Title
+            <input name="title" type="text" />
+          </label>
+          <label>
+            Paste text
+            <textarea name="content" rows={8} />
+          </label>
+          <label>
+            Or choose a .txt or .md file
+            <input name="file" type="file" accept=".txt,.md" />
+          </label>
+          <button type="submit" disabled={saving}>
+            {saving ? "Saving…" : "Add document"}
+          </button>
+        </form>
+        {error && (
+          <p className={styles.error} role="alert">
+            {error}
           </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        )}
+      </section>
+
+      <section>
+        <h2>Documents ({documents.length})</h2>
+        {documents.length === 0 ? (
+          <p className={styles.muted}>No documents yet.</p>
+        ) : (
+          <ul className={styles.list}>
+            {documents.map((doc) => (
+              <li key={doc.id}>
+                <div>
+                  <strong>{doc.title}</strong>
+                  <span className={styles.muted}>
+                    {doc.characters.toLocaleString()} characters · added{" "}
+                    {new Date(doc.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <button type="button" onClick={() => handleDelete(doc.id)}>
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </main>
   );
 }
