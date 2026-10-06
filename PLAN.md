@@ -134,19 +134,23 @@ Each step is its own branch, ends with something visible, and merges to
 | # | Branch | What gets built | Done when |
 |---|---|---|---|
 | 1 | `init-webapp` | Mac tools (Homebrew, Node, VS Code), Next.js starter, Neon and Anthropic accounts | Starter page loads at localhost:3000 and is pushed to GitHub |
-| 2 | `document-upload` | Database tables; paste or upload text; list documents | An uploaded document is still listed after refreshing the page |
+| 2 | `document-upload` | Database tables; paste or upload text; list documents; delete a document | An uploaded document is still listed after refreshing the page |
 | 3 | `chunking` | Split on upload; document page shows its chunks | You can open a document and read its numbered chunks |
-| 4 | `edit-delete` | Edit re-chunks; delete removes chunks | After an edit, the chunks shown match the new text |
-| 5 | `pdf-upload` | Extract text from a PDF, then reuse steps 2-3 | A text-based PDF shows readable chunks; a scanned PDF gives a clear "no text found" message |
+| 4 | `edit-delete` | Edit re-chunks (delete was built in step 2; its chunks go automatically) | After an edit, the chunks shown match the new text |
 | 6 | `search` | Question box returns top 5 passages with document title and score. No LLM | "Where did Harry meet Sally?" puts the right passage in the top 5 |
 | 7 | `llm-answers` | Answer with [1][2] citations shown beside the source passages | A known question is answered correctly with the right citation; an unanswerable one returns "not found" |
 | 8 | (on `main`) | Connect repo to Vercel; add database URL and API key as environment variables; set a spending cap on the API key | The public URL passes the step 7 checks |
+| 5 | `pdf-upload` | Extract text from a PDF, then reuse steps 2-3 | A text-based PDF shows readable chunks; a scanned PDF gives a clear "no text found" message |
 
 Search (6) is built and checked before the LLM (7) so that when an answer is
 wrong, you can tell which half failed.
 
-Suggested pace: step 1-2 Sunday, 3 Monday, 4-5 Tuesday, 6 Wednesday,
-7 Thursday, 8 Friday, Saturday as buffer.
+PDF upload (5) is done last, after the deploy, and keeps its number. It is
+the step to drop if time runs short, so the core app is live before any time
+is spent on it. Once merged to `main` it deploys automatically.
+
+Pace: step 1-2 Monday, 3-4 Tuesday, 6 Wednesday, 7 Thursday, 8 Friday,
+5 on Saturday if there is time, otherwise Saturday is buffer.
 
 ## Each step, in order
 
@@ -173,4 +177,9 @@ a "where did X meet Y" answer, used for the step 6 and 7 checks.
   a failure came from search or from the LLM. Also measure latency.
 - Login, and limiting search to a user's own documents (an owner column on
   `documents` plus a filter in the search query).
+- **TODO, decide at step 4:** how a user updates a document when a new
+  version comes out. Planned: edit the stored text on the document page.
+  Options to add: a "replace with a new file" button on that page, or treating
+  an upload with an existing title as a replacement. All three change the same
+  row and keep its id, so all three count as Update.
 - Embeddings / meaning-based search, if keyword search misses obvious answers.

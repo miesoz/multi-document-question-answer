@@ -42,3 +42,8 @@ next-env.d.ts
 
 # personal Claude Code notes
 CLAUDE.local.md
+.neon
+
+# Neon agent skills (tooling for Claude Code, not part of the app)
+.claude/
+skills-lock.json

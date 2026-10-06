@@ -129,3 +129,60 @@ What was chosen, why, and what was turned down. Newest entries at the bottom.
   step 7, not now.
 - **Why:** nothing in step 1 uses them. Note the API key is separate from the
   Claude Pro subscription and is billed per use.
+
+### PDF upload moved to the end of the roadmap
+- **Chose:** build step 5 (PDF upload) last, after the deploy in step 8.
+- **Why:** it was already the step to drop if time runs short, and step 1
+  finished a day later than planned. Doing it last means the core app is
+  deployed before any time goes into it.
+- **Cost of doing it later:** low. A PDF only needs its text extracted; after
+  that it goes through the same save-and-chunk path as pasted text.
+
+## 2026-10-05: step 2, document-upload
+
+### Neon project and tooling
+- **Chose:** Neon project `multi-doc-qa` in N. Virginia, Postgres only (no
+  Auth, no AI gateway).
+- **Why N. Virginia:** Vercel runs server code in Washington, D.C. by
+  default, and the server talks to the database on every request.
+- **Chose:** install Neon's command-line tool (`neon`), its agent skills, and
+  its MCP server (a connection that lets Claude Code query the database).
+- **Why:** Jason can run database commands himself to learn, and Claude can
+  check what is actually in the tables. `neon link` also wrote the connection
+  string into `.env.local`, so nothing had to be pasted by hand.
+- **Limits set:** the MCP server's key is restricted to this one project and
+  installed for Claude Code only. Its config lives in `~/.claude.json`,
+  outside the repo.
+- **Turned down:** Neon's config-as-code system (`neon.ts`, `neon deploy`).
+  One project with default settings has nothing to configure, and the tables
+  are already defined in code by `schema.sql`.
+
+### Delete moved up into step 2
+- **Chose:** step 2 covers add, list, and delete. Edit stays in step 4.
+- **Why:** delete is one button and one SQL statement once the list exists.
+
+### Tables: one row per chunk, numeric ids
+- **Chose:** `documents` and `chunks` as two tables, with one row per chunk
+  and a `document_id` on each chunk pointing back to its document.
+- **Why:** search has to rank and return individual passages. Postgres ranks
+  and indexes rows, so each chunk being a row keeps search to one short,
+  fast query. Packing a document's chunks into one row would save about 1%
+  of the space and lose the index.
+- **Chose:** ids are numbers that Postgres hands out. Titles can repeat and
+  change, so they cannot identify a row.
+- **Left out:** an authors column. Nothing in the plan filters by author, and
+  an author named in the text is already searchable.
+- **Deferred:** the search column and its index on `chunks`, until step 6.
+- **Scale note:** a long book is about 1,200 chunks and 3 to 4 MB stored.
+  Neon's free plan (about 500 MB) holds roughly 100 to 150 of them.
+
+### Upload goes through API routes, checked on the server
+- **Chose:** the page sends the form to `/api/documents`, which returns JSON,
+  as laid out in `PLAN.md`.
+- **Chose:** the server checks every upload: `.txt` or `.md` only, 4 MB at
+  most, a title, some text, and no zero bytes (which catches a binary file
+  renamed to `.txt`).
+- **Why:** the browser's file filter is a convenience and can be bypassed, so
+  the server cannot trust what it is sent.
+- **Chose:** queries pass values as `${...}` parameters, never glued into the
+  SQL text, so user input cannot be run as SQL.
