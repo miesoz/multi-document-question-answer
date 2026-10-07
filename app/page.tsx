@@ -7,6 +7,7 @@ type DocumentSummary = {
   id: string;
   title: string;
   characters: number;
+  chunks: number;
   created_at: string;
 };
 
@@ -95,7 +96,8 @@ export default function Home() {
                 <div>
                   <strong>{doc.title}</strong>
                   <span className={styles.muted}>
-                    {doc.characters.toLocaleString()} characters · added{" "}
+                    {doc.characters.toLocaleString()} characters ·{" "}
+                    {doc.chunks.toLocaleString()} chunks · added{" "}
                     {new Date(doc.created_at).toLocaleString()}
                   </span>
                 </div>

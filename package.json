@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "try-chunk": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/try-chunk.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

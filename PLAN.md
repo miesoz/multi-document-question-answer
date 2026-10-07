@@ -135,8 +135,8 @@ Each step is its own branch, ends with something visible, and merges to
 |---|---|---|---|
 | 1 | `init-webapp` | Mac tools (Homebrew, Node, VS Code), Next.js starter, Neon and Anthropic accounts | Starter page loads at localhost:3000 and is pushed to GitHub |
 | 2 | `document-upload` | Database tables; paste or upload text; list documents; delete a document | An uploaded document is still listed after refreshing the page |
-| 3 | `chunking` | Split on upload; document page shows its chunks | You can open a document and read its numbered chunks |
-| 4 | `edit-delete` | Edit re-chunks (delete was built in step 2; its chunks go automatically) | After an edit, the chunks shown match the new text |
+| 3 | `chunking` | Split on upload and save the chunks | `npm run try-chunk` prints sensible chunks, and an uploaded document has rows in the `chunks` table |
+| 4 | `edit-delete` | A page for one document: its text, its numbered chunks, and editing, which re-chunks (delete was built in step 2) | After an edit, the chunks shown match the new text |
 | 6 | `search` | Question box returns top 5 passages with document title and score. No LLM | "Where did Harry meet Sally?" puts the right passage in the top 5 |
 | 7 | `llm-answers` | Answer with [1][2] citations shown beside the source passages | A known question is answered correctly with the right citation; an unanswerable one returns "not found" |
 | 8 | (on `main`) | Connect repo to Vercel; add database URL and API key as environment variables; set a spending cap on the API key | The public URL passes the step 7 checks |
