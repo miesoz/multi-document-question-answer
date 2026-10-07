@@ -186,3 +186,49 @@ What was chosen, why, and what was turned down. Newest entries at the bottom.
   the server cannot trust what it is sent.
 - **Chose:** queries pass values as `${...}` parameters, never glued into the
   SQL text, so user input cannot be run as SQL.
+
+## 2026-10-07: step 3, chunking
+
+### Recursive chunking
+- **Chose:** cut at the largest natural boundary first: blank lines
+  (paragraphs), then sentence ends, then spaces (words). A piece is only cut
+  smaller when it is over the chunk size by itself. As a last resort a single
+  "word" over the chunk size is cut every 1,000 characters.
+- **Why:** it is the standard default for prose, which is what the app is
+  for (papers, books, articles, essays). Chunks are made of whole sentences,
+  so a fact is not split in half and citations read cleanly.
+- **Turned down:**
+  - Fixed-size (cut every N characters or words): about 10 lines of code,
+    but it cuts mid-sentence.
+  - Cutting at headings: plain text files and books have no reliable headings.
+  - Semantic chunking (a model finds topic changes): a model call per
+    document, beyond the plan.
+- **Sentences, not lines, as the second level:** many text files break lines
+  about every 70 characters in the middle of sentences.
+- **Known limits:** abbreviations such as "Mr." count as a sentence end, which
+  only matters when a cut lands there. Paragraphs marked by indentation
+  instead of a blank line are not detected, so that text is cut at sentence
+  ends.
+
+### Overlap is the last sentence, added on top of the chunk size
+- **Chose:** each chunk after the first starts with the last sentence of the
+  chunk before it, at most `CHUNK_OVERLAP` (200) characters. A stored chunk
+  can therefore be up to about 1,200 characters.
+- **Why:** a fact on a boundary appears whole in at least one chunk. Adding
+  the overlap on top keeps the fill logic simple: chunks are built to 1,000
+  first, and the repeated sentence is added afterwards.
+- **Known limit:** in dialogue the last sentence can be very short (for
+  example "I asked."), so the overlap carries little there.
+
+### Document page moved from step 3 to step 4
+- **Chose:** step 3 is the chunker plus saving chunks on upload, checked with
+  `npm run try-chunk` and a `SELECT` on the `chunks` table. The page that
+  shows one document is built with editing in step 4.
+- **Why:** the page is needed for Update, not for chunking.
+
+### Document and chunks saved in one SQL statement
+- **Chose:** the upload runs a single statement that inserts the document
+  row and all of its chunk rows.
+- **Why:** one statement is all-or-nothing, so a document can never be saved
+  without its chunks. It is also one trip to the database instead of one per
+  chunk: an 800-chunk book saves in about a quarter of a second.

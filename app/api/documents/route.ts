@@ -1,3 +1,4 @@
+import { chunkText } from "@/lib/chunk";
 import { sql } from "@/lib/db";
 
 // Vercel rejects request bodies above about 4.5 MB, so stop a little short.
@@ -11,14 +12,20 @@ function badRequest(message: string) {
 // GET /api/documents: list every document, newest first.
 export async function GET() {
   const documents = await sql`
-    SELECT id, title, length(content) AS characters, created_at
+    SELECT
+      id,
+      title,
+      length(content) AS characters,
+      (SELECT count(*)::int FROM chunks WHERE document_id = documents.id) AS chunks,
+      created_at
     FROM documents
     ORDER BY created_at DESC
   `;
   return Response.json(documents);
 }
 
-// POST /api/documents: save a new document from pasted text or a file.
+// POST /api/documents: save a new document from pasted text or a file,
+// split into chunks.
 export async function POST(request: Request) {
   const form = await request.formData();
   const file = form.get("file");
@@ -50,10 +57,25 @@ export async function POST(request: Request) {
     return badRequest("That file does not look like plain text.");
   }
 
+  const chunks = chunkText(content);
+
+  // One statement saves the document and all of its chunks. A single
+  // statement is all-or-nothing, so a document is never saved without its
+  // chunks. unnest turns the array into rows, and WITH ORDINALITY numbers
+  // them 1, 2, 3...
   const [document] = await sql`
-    INSERT INTO documents (title, content)
-    VALUES (${title}, ${content})
-    RETURNING id, title, length(content) AS characters, created_at
+    WITH new_document AS (
+      INSERT INTO documents (title, content)
+      VALUES (${title}, ${content})
+      RETURNING id, title, length(content) AS characters, created_at
+    ),
+    new_chunks AS (
+      INSERT INTO chunks (document_id, chunk_index, content)
+      SELECT new_document.id, piece.position - 1, piece.content
+      FROM new_document,
+        unnest(${chunks}::text[]) WITH ORDINALITY AS piece(content, position)
+    )
+    SELECT * FROM new_document
   `;
-  return Response.json(document, { status: 201 });
+  return Response.json({ ...document, chunks: chunks.length }, { status: 201 });
 }
