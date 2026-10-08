@@ -110,6 +110,10 @@
   background: #c62828;
 }
 
+.form + .muted {
+  margin-top: 12px;
+}
+
 .muted {
   font-size: 0.85rem;
   opacity: 0.65;

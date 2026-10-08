@@ -25,6 +25,7 @@ export default function Home() {
   const [editing, setEditing] = useState<EditingDocument | null>(null);
   const [editError, setEditError] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+  const [question, setQuestion] = useState("");
 
   // Runs once when the page first appears: ask the server for the list.
   useEffect(() => {
@@ -33,6 +34,13 @@ export default function Home() {
       .then(setDocuments)
       .catch(() => setError("Could not load the documents."));
   }, []);
+
+  // Ask button. For now it only keeps the question; search comes next.
+  function handleAsk(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setQuestion(String(form.get("question")).trim());
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); // stop the browser's default full-page reload
@@ -115,6 +123,19 @@ export default function Home() {
   return (
     <main className={styles.main}>
       <h1>Multi-document Q&amp;A</h1>
+
+      <section>
+        <h2>Ask a question</h2>
+        <form className={styles.form} onSubmit={handleAsk}>
+          <textarea name="question" rows={8} aria-label="Question" />
+          <button type="submit">Ask</button>
+        </form>
+        {question && (
+          <p className={styles.muted}>
+            You asked: {question} (search is not connected yet)
+          </p>
+        )}
+      </section>
 
       <section>
         <h2>Add a document</h2>
