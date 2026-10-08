@@ -1,8 +1,7 @@
 import { chunkText } from "@/lib/chunk";
 import { sql } from "@/lib/db";
+import { checkDocument, MAX_CONTENT_BYTES } from "@/lib/validate";
 
-// Vercel rejects request bodies above about 4.5 MB, so stop a little short.
-const MAX_CONTENT_BYTES = 4 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = [".txt", ".md"];
 
 function badRequest(message: string) {
@@ -46,16 +45,8 @@ export async function POST(request: Request) {
   }
 
   content = content.trim();
-  if (!title) return badRequest("Give the document a title.");
-  if (!content) return badRequest("Paste some text or choose a file.");
-  if (Buffer.byteLength(content) > MAX_CONTENT_BYTES) {
-    return badRequest("The text is larger than 4 MB.");
-  }
-  // A renamed binary file (an image, say) contains zero bytes, which Postgres
-  // text columns cannot store.
-  if (content.includes("\u0000")) {
-    return badRequest("That file does not look like plain text.");
-  }
+  const problem = checkDocument(title, content);
+  if (problem) return badRequest(problem);
 
   const chunks = chunkText(content);
 

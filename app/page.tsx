@@ -11,10 +11,20 @@ type DocumentSummary = {
   created_at: string;
 };
 
+// The document open in the edit popup, as it was when loaded.
+type EditingDocument = {
+  id: string;
+  title: string;
+  content: string;
+};
+
 export default function Home() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<EditingDocument | null>(null);
+  const [editError, setEditError] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
 
   // Runs once when the page first appears: ask the server for the list.
   useEffect(() => {
@@ -55,6 +65,53 @@ export default function Home() {
     setDocuments((current) => current.filter((doc) => doc.id !== id));
   }
 
+  // Edit button: load the document's full text, then open the popup.
+  async function handleEdit(id: string) {
+    setError("");
+    const response = await fetch(`/api/documents/${id}`);
+    const result = await response.json();
+    if (!response.ok) {
+      setError(result.error);
+      return;
+    }
+    setEditError("");
+    setEditing(result);
+  }
+
+  // Save button in the popup.
+  async function handleSave(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editing) return;
+    const form = new FormData(event.currentTarget);
+    const title = String(form.get("title")).trim();
+    const content = String(form.get("content")).trim();
+
+    // Nothing changed: close without sending anything to the server.
+    if (title === editing.title && content === editing.content) {
+      setEditing(null);
+      return;
+    }
+
+    setEditError("");
+    setEditSaving(true);
+    const response = await fetch(`/api/documents/${editing.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, content }),
+    });
+    const result = await response.json();
+    setEditSaving(false);
+
+    if (!response.ok) {
+      setEditError(result.error);
+      return;
+    }
+    setDocuments((current) =>
+      current.map((doc) => (doc.id === result.id ? result : doc)),
+    );
+    setEditing(null);
+  }
+
   return (
     <main className={styles.main}>
       <h1>Multi-document Q&amp;A</h1>
@@ -93,7 +150,7 @@ export default function Home() {
           <ul className={styles.list}>
             {documents.map((doc) => (
               <li key={doc.id}>
-                <div>
+                <div className={styles.details}>
                   <strong>{doc.title}</strong>
                   <span className={styles.muted}>
                     {doc.characters.toLocaleString()} characters ·{" "}
@@ -101,14 +158,63 @@ export default function Home() {
                     {new Date(doc.created_at).toLocaleString()}
                   </span>
                 </div>
-                <button type="button" onClick={() => handleDelete(doc.id)}>
-                  Delete
-                </button>
+                <div className={styles.actions}>
+                  <button type="button" onClick={() => handleEdit(doc.id)}>
+                    Edit
+                  </button>
+                  <button type="button" onClick={() => handleDelete(doc.id)}>
+                    Delete
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      {editing && (
+        <dialog
+          className={styles.dialog}
+          // Runs when the popup is added to the page: open it as a modal.
+          ref={(node) => {
+            if (node && !node.open) node.showModal();
+          }}
+          // Runs when it closes, including by the Esc key.
+          onClose={() => setEditing(null)}
+        >
+          <button
+            type="button"
+            className={styles.close}
+            aria-label="Close without saving"
+            onClick={() => setEditing(null)}
+          >
+            ×
+          </button>
+          <h2>Edit document</h2>
+          <form className={styles.form} onSubmit={handleSave}>
+            <label>
+              Title
+              <input name="title" type="text" defaultValue={editing.title} />
+            </label>
+            <label>
+              Text
+              <textarea
+                name="content"
+                rows={16}
+                defaultValue={editing.content}
+              />
+            </label>
+            <button type="submit" disabled={editSaving}>
+              {editSaving ? "Saving…" : "Save"}
+            </button>
+          </form>
+          {editError && (
+            <p className={styles.error} role="alert">
+              {editError}
+            </p>
+          )}
+        </dialog>
+      )}
     </main>
   );
 }

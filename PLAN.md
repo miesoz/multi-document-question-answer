@@ -117,12 +117,11 @@ Deleting one removes its chunks automatically.
 
 ## Files
 
-- `app/page.tsx`: the main page: question box, answer + sources, document list, upload form
-- `app/documents/[id]/page.tsx`: view, edit, delete one document; shows its chunks
+- `app/page.tsx`: the main page: question box, answer + sources, document list, upload form, edit popup
 - `app/api/documents/route.ts`, `app/api/documents/[id]/route.ts`: create, list, read, update, delete
 - `app/api/search/route.ts`: question in, ranked chunks out
 - `app/api/ask/route.ts`: question in, answer + cited chunks out
-- `lib/db.ts`, `lib/chunk.ts`, `lib/pdf.ts`, `lib/search.ts`, `lib/answer.ts`
+- `lib/db.ts`, `lib/chunk.ts`, `lib/validate.ts`, `lib/pdf.ts`, `lib/search.ts`, `lib/answer.ts`
 - `schema.sql`: the two tables
 - `.env.local`: database URL and API key, never committed
 
@@ -136,7 +135,7 @@ Each step is its own branch, ends with something visible, and merges to
 | 1 | `init-webapp` | Mac tools (Homebrew, Node, VS Code), Next.js starter, Neon and Anthropic accounts | Starter page loads at localhost:3000 and is pushed to GitHub |
 | 2 | `document-upload` | Database tables; paste or upload text; list documents; delete a document | An uploaded document is still listed after refreshing the page |
 | 3 | `chunking` | Split on upload and save the chunks | `npm run try-chunk` prints sensible chunks, and an uploaded document has rows in the `chunks` table |
-| 4 | `edit-delete` | A page for one document: its text, its numbered chunks, and editing, which re-chunks (delete was built in step 2) | After an edit, the chunks shown match the new text |
+| 4 | `edit-documents` | Edit button and popup to change a document's title and text; saving re-chunks it (delete was built in step 2) | After an edit, the document's chunk count and its rows in `chunks` match the new text |
 | 6 | `search` | Question box returns top 5 passages with document title and score. No LLM | "Where did Harry meet Sally?" puts the right passage in the top 5 |
 | 7 | `llm-answers` | Answer with [1][2] citations shown beside the source passages | A known question is answered correctly with the right citation; an unanswerable one returns "not found" |
 | 8 | (on `main`) | Connect repo to Vercel; add database URL and API key as environment variables; set a spending cap on the API key | The public URL passes the step 7 checks |
@@ -177,9 +176,10 @@ a "where did X meet Y" answer, used for the step 6 and 7 checks.
   a failure came from search or from the LLM. Also measure latency.
 - Login, and limiting search to a user's own documents (an owner column on
   `documents` plus a filter in the search query).
-- **TODO, decide at step 4:** how a user updates a document when a new
-  version comes out. Planned: edit the stored text on the document page.
-  Options to add: a "replace with a new file" button on that page, or treating
-  an upload with an existing title as a replacement. All three change the same
-  row and keep its id, so all three count as Update.
+- A "replace with a new file" button in the edit popup, for when a new
+  version of a document comes out. Today the text is edited or pasted in.
+- Reject a save if the document changed since the user opened it. Today, if
+  two people edit the same document, the second save overwrites the first.
+- A view of one document's numbered chunks in the app. Today they are
+  checked with `npm run try-chunk` or a `SELECT` on the `chunks` table.
 - Embeddings / meaning-based search, if keyword search misses obvious answers.
