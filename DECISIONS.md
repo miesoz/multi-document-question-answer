@@ -232,3 +232,30 @@ What was chosen, why, and what was turned down. Newest entries at the bottom.
 - **Why:** one statement is all-or-nothing, so a document can never be saved
   without its chunks. It is also one trip to the database instead of one per
   chunk: an 800-chunk book saves in about a quarter of a second.
+
+## 2026-10-08: step 4, edit-documents
+
+### Edit in a popup on the main page
+- **Chose:** an Edit button beside Delete opens a popup with the title and
+  the text, a Save button, and a red close button. This replaces the
+  separate document page in the earlier plan.
+- **Why:** it needs no new page or address, and it is all Update requires.
+- **Given up:** a view of a document's numbered chunks in the app. The chunk
+  count in the list and a `SELECT` on `chunks` cover checking.
+
+### Saving an edit rebuilds all of the document's chunks
+- **Chose:** the server updates the document's row in place (same id), deletes
+  every chunk of that document, and saves new chunks cut from the full new
+  text. The three statements run as one transaction.
+- **Why:** the server only receives the new text, not what changed. An edit
+  shifts where every later chunk boundary falls, so most chunks would be
+  redone anyway, and a full rebuild takes about a quarter of a second for a
+  whole book. The chunks can never disagree with the text.
+- **Turned down:** keeping the chunks before the edit and redoing the rest.
+  Worth it only when a chunk is costly to produce, as with embeddings.
+- **Chose:** the page compares the title and text with what it loaded and
+  sends nothing if they are identical. It compares the text, not its length,
+  because fixing a typo can leave the length unchanged.
+- **Known gap:** two people editing the same document at once. Both saves
+  succeed in turn, so the second overwrites the first without warning.
+  Postgres's row locks keep the tables consistent; no locking code is needed.

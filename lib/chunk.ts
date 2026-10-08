@@ -22,9 +22,11 @@ export const CHUNK_OVERLAP = 200;
 const SENTENCE_END = /(?<=[.?!]["'”’)\]]*)\s+/;
 
 // The ways to cut text, from largest pieces to smallest. `separator` is where
-// to cut. `join` is put between two pieces that share a chunk.
+// to cut. `join` is put between two pieces that share a chunk: splitting
+// removes the separator, and without something in its place the last word of
+// one piece and the first word of the next would run together ("end.Next").
 const LEVELS = [
-  { separator: /\n\s*\n/, join: "\n\n" }, // paragraphs (cut at blank lines)
+  { separator: /\n\s*\n/, join: "\n\n" }, // paragraphs (ASSUMES PARAGRAPHS ARE SEPERATED BY BLANK LINE AND NOT SINGLE LINE BREAK)
   { separator: SENTENCE_END, join: " " }, // sentences
   { separator: /\s+/, join: " " }, // words
 ];
@@ -40,19 +42,23 @@ export function chunkText(
   // Windows files end lines with \r\n. Keep only the \n.
   text = text.replace(/\r\n/g, "\n");
 
-  const chunks = split(text, chunkSize, 0);
+  const chunks = cutIntoChunks(text, chunkSize, 0);
   if (overlap === 0) return chunks;
 
   return chunks.map((chunk, index) => {
     if (index === 0) return chunk;
-    const repeated = lastSentence(chunks[index - 1], overlap);
+    const repeated = getLastSentence(chunks[index - 1], overlap);
     return repeated === "" ? chunk : repeated + " " + chunk;
   });
 }
 
-// Cuts `text` using LEVELS[level] and fills chunks with the pieces. A piece
-// that is over chunkSize by itself is cut again at the next level.
-function split(text: string, chunkSize: number, level: number): string[] {
+// cutInto chunks is a recursive function where we will walk through sections of some text, adding pieces of that
+// text into a chunk as long as they fit and adding it to our resulting list of chunks. whenever we find a piece
+// itself that is over chunk size, then we recurse and break that piece up into smaller pieces and repeat the process
+// by walking through those smaller pieces and adding as many pieces as we can to a chunk. then we do that again
+// if one of those  pieces is too large, using a list of seperators to break up pieces
+// in order of priority - using paragraphs first, the sentences, then words
+function cutIntoChunks(text: string, chunkSize: number, level: number): string[] {
   if (level === LEVELS.length) return cutEvery(text, chunkSize);
 
   const { separator, join } = LEVELS[level];
@@ -62,28 +68,26 @@ function split(text: string, chunkSize: number, level: number): string[] {
     .filter((piece) => piece.length > 0);
 
   const chunks: string[] = [];
-  let current = ""; // the chunk being built
+  let currChunk = "";
 
   for (const piece of pieces) {
     if (piece.length > chunkSize) {
-      // Too big for any chunk: finish the chunk being built, then cut this
-      // piece into smaller pieces and add the chunks that produces.
-      if (current !== "") chunks.push(current);
-      current = "";
-      chunks.push(...split(piece, chunkSize, level + 1));
-    } else if (current === "") {
-      current = piece;
-    } else if (current.length + join.length + piece.length <= chunkSize) {
-      // It fits: append it to the chunk being built.
-      current += join + piece;
+      // Too big for any chunk, finish the chunk being built if any, then cut this
+      // piece into smaller pieces and add the chunks that produces, then come back and continue to the next piece
+      if (currChunk !== "") chunks.push(currChunk);
+      currChunk = "";
+      chunks.push(...cutIntoChunks(piece, chunkSize, level + 1));
+    } else if (currChunk === "") {
+      currChunk = piece;
+    } else if (currChunk.length + join.length + piece.length <= chunkSize) {
+      currChunk += join + piece;
     } else {
-      // It does not fit: finish this chunk and start the next with it.
-      chunks.push(current);
-      current = piece;
+      chunks.push(currChunk);
+      currChunk = piece;
     }
   }
 
-  if (current !== "") chunks.push(current);
+  if (currChunk !== "") chunks.push(currChunk);
   return chunks;
 }
 
@@ -110,7 +114,7 @@ function isFirstHalfOfPair(code: number): boolean {
 
 // The last sentence of `chunk`. If that sentence is longer than maxLength,
 // only its final whole words that fit in maxLength ("" if no whole word fits).
-function lastSentence(chunk: string, maxLength: number): string {
+function getLastSentence(chunk: string, maxLength: number): string {
   const sentences = chunk.split(SENTENCE_END);
   const last = sentences[sentences.length - 1];
   if (last.length <= maxLength) return last;
