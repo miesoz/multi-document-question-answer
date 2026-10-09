@@ -110,7 +110,54 @@
   background: #c62828;
 }
 
-.form + .results {
+.form + .answer {
+  margin-top: 16px;
+  padding: 16px;
+  line-height: 1.6;
+  border: 1px solid #8888;
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+
+.cited {
+  text-decoration: underline;
+  text-decoration-color: #e0a800;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.answer sup {
+  display: inline-block; /* keeps the underline off the number */
+  margin-left: 1px;
+  font-size: 0.7rem;
+}
+
+.answer sup a {
+  padding: 0 1px;
+  color: #b07d00;
+  text-decoration: none;
+}
+
+.answer sup a:hover {
+  text-decoration: underline;
+}
+
+.sourcesHeading {
+  margin-top: 24px;
+  font-size: 0.95rem;
+}
+
+.quote {
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  border-left: 3px solid #e0a800;
+  background: #e0a80022;
+  white-space: pre-wrap;
+}
+
+.results {
   margin-top: 16px;
   padding-left: 24px;
   display: flex;
@@ -130,6 +177,34 @@
   font-size: 0.9rem;
   line-height: 1.5;
   white-space: pre-wrap; /* keep the passage's own line breaks */
+}
+
+/* The source a clicked [n] points at: leave room above it and flash it. */
+.results li:target {
+  animation: flash 1.5s ease-out;
+}
+
+.results li[id] {
+  scroll-margin-top: 16px;
+}
+
+@keyframes flash {
+  from {
+    background: #e0a80055;
+  }
+  to {
+    background: transparent;
+  }
+}
+
+.searched {
+  margin-top: 20px;
+}
+
+.searched summary {
+  font-size: 0.85rem;
+  opacity: 0.65;
+  cursor: pointer;
 }
 
 .muted {

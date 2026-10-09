@@ -6,6 +6,15 @@ export const MAX_CONTENT_BYTES = 4 * 1024 * 1024;
 // The longest question the search accepts, in characters.
 export const MAX_QUESTION_LENGTH = 1000;
 
+// Returns an error message for the user, or null if the question is fine.
+export function checkQuestion(question: string): string | null {
+  if (!question) return "Type a question first.";
+  if (question.length > MAX_QUESTION_LENGTH) {
+    return `Keep the question under ${MAX_QUESTION_LENGTH} characters.`;
+  }
+  return null;
+}
+
 // Returns an error message for the user, or null if the document is fine.
 export function checkDocument(title: string, content: string): string | null {
   if (!title) return "Give the document a title.";

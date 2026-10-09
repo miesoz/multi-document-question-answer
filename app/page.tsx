@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { AnswerPart } from "@/lib/answer";
 import type { SearchResult } from "@/lib/search";
 import { MAX_QUESTION_LENGTH } from "@/lib/validate";
 import styles from "./page.module.css";
@@ -29,6 +30,7 @@ export default function Home() {
   const [editSaving, setEditSaving] = useState(false);
   // null until the first question is asked.
   const [results, setResults] = useState<SearchResult[] | null>(null);
+  const [answer, setAnswer] = useState<AnswerPart[] | null>(null);
   const [askError, setAskError] = useState("");
   const [asking, setAsking] = useState(false);
   const [questionLength, setQuestionLength] = useState(0);
@@ -41,7 +43,8 @@ export default function Home() {
       .catch(() => setError("Could not load the documents."));
   }, []);
 
-  // Ask button: send the question to the server and show the chunks it finds.
+  // Ask button: send the question to the server, then show the answer and the
+  // passages it was written from.
   async function handleAsk(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -49,18 +52,14 @@ export default function Home() {
 
     setAskError("");
     setAsking(true);
-    const response = await fetch(
-      `/api/search?q=${encodeURIComponent(question)}`,
-    );
+    const response = await fetch(`/api/ask?q=${encodeURIComponent(question)}`);
     const result = await response.json();
     setAsking(false);
 
-    if (!response.ok) {
-      setAskError(result.error);
-      setResults(null);
-      return;
-    }
-    setResults(result);
+    if (!response.ok) setAskError(result.error);
+    setAnswer(result.answer ?? null);
+    // The passages come back even when the answer could not be written.
+    setResults(result.chunks ?? null);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -141,6 +140,15 @@ export default function Home() {
     setEditing(null);
   }
 
+  // The passages the answer cites, in the order the answer first uses them.
+  // Each holds a position in `results`. A passage's place in this list, plus
+  // one, is the source number the user sees: [1], [2], [3]...
+  const citedPassages = [
+    ...new Set(
+      (answer ?? []).flatMap((part) => part.citations.map((c) => c.passage)),
+    ),
+  ].filter((passage) => results?.[passage]);
+
   return (
     <main className={styles.main}>
       <h1>Multi-document Q&amp;A</h1>
@@ -159,7 +167,7 @@ export default function Home() {
             Character limit: {questionLength}/{MAX_QUESTION_LENGTH}
           </span>
           <button type="submit" disabled={asking}>
-            {asking ? "Searching…" : "Ask"}
+            {asking ? "Answering…" : "Ask"}
           </button>
         </form>
         {askError && (
@@ -167,21 +175,75 @@ export default function Home() {
             {askError}
           </p>
         )}
-        {results && results.length === 0 && (
-          <p className={styles.muted}>No matching passages found.</p>
+        {answer && (
+          <p className={styles.answer}>
+            {answer.map((part, index) => (
+              <span
+                key={index}
+                // A statement backed by a source is underlined.
+                className={part.citations.length > 0 ? styles.cited : undefined}
+              >
+                {part.text}
+                {/* One link per source this statement is based on. */}
+                {[...new Set(part.citations.map((c) => c.passage))]
+                  .filter((passage) => citedPassages.includes(passage))
+                  .map((passage) => {
+                    const number = citedPassages.indexOf(passage) + 1;
+                    return (
+                      <sup key={passage}>
+                        <a href={`#source-${number}`}>[{number}]</a>
+                      </sup>
+                    );
+                  })}
+              </span>
+            ))}
+          </p>
+        )}
+        {results && citedPassages.length > 0 && (
+          <>
+            <h3 className={styles.sourcesHeading}>Sources</h3>
+            <ol className={styles.results}>
+              {citedPassages.map((passage, index) => {
+                const source = results[passage];
+                // The sentences the answer quoted from this passage.
+                const quotes = (answer ?? [])
+                  .flatMap((part) => part.citations)
+                  .filter((citation) => citation.passage === passage)
+                  .map((citation) => citation.quote.trim());
+                return (
+                  <li key={source.id} id={`source-${index + 1}`}>
+                    <span className={styles.muted}>
+                      {source.title} · chunk {source.chunk_index}
+                    </span>
+                    {[...new Set(quotes)].map((quote) => (
+                      <blockquote key={quote} className={styles.quote}>
+                        {quote}
+                      </blockquote>
+                    ))}
+                  </li>
+                );
+              })}
+            </ol>
+          </>
         )}
         {results && results.length > 0 && (
-          <ol className={styles.results}>
-            {results.map((result) => (
-              <li key={result.id}>
-                <span className={styles.muted}>
-                  {result.title} · chunk {result.chunk_index} · score{" "}
-                  {result.score.toFixed(4)}
-                </span>
-                <p>{result.content}</p>
-              </li>
-            ))}
-          </ol>
+          // Closed by default. For checking what search returned.
+          <details className={styles.searched}>
+            <summary>
+              Show all {results.length} passages searched
+            </summary>
+            <ol className={styles.results}>
+              {results.map((result) => (
+                <li key={result.id}>
+                  <span className={styles.muted}>
+                    {result.title} · chunk {result.chunk_index} · score{" "}
+                    {result.score.toFixed(4)}
+                  </span>
+                  <p>{result.content}</p>
+                </li>
+              ))}
+            </ol>
+          </details>
         )}
       </section>
 
