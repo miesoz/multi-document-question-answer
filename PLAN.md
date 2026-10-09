@@ -77,7 +77,7 @@ Asking a question stores nothing; it only reads.
 | Hosting | Vercel, free hobby tier, deploys from `main` on every push |
 | Database | Neon (hosted Postgres), accessed with plain SQL via `@neondatabase/serverless` |
 | Search | Postgres built-in full-text search |
-| LLM | Claude Haiku 4.5 via the Anthropic API (`@anthropic-ai/sdk`) |
+| LLM | Claude Haiku 5.5 via the Anthropic API (`@anthropic-ai/sdk`), with its citations feature |
 | PDF text | `unpdf`, on the server |
 
 Reasons for each are in `DECISIONS.md`.

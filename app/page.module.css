@@ -110,7 +110,37 @@
   background: #c62828;
 }
 
-.form + .results {
+.form + .answer {
+  margin-top: 16px;
+  padding: 16px;
+  line-height: 1.6;
+  border: 1px solid #8888;
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+
+.answer sup {
+  margin-left: 1px;
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.sourcesHeading {
+  margin-top: 24px;
+  font-size: 0.95rem;
+}
+
+.quote {
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  border-left: 3px solid #e0a800;
+  background: #e0a80022;
+  white-space: pre-wrap;
+}
+
+.results {
   margin-top: 16px;
   padding-left: 24px;
   display: flex;
