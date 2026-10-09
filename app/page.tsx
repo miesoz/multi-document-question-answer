@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { SearchResult } from "@/lib/search";
+import { MAX_QUESTION_LENGTH } from "@/lib/validate";
 import styles from "./page.module.css";
 
 type DocumentSummary = {
@@ -25,7 +27,11 @@ export default function Home() {
   const [editing, setEditing] = useState<EditingDocument | null>(null);
   const [editError, setEditError] = useState("");
   const [editSaving, setEditSaving] = useState(false);
-  const [question, setQuestion] = useState("");
+  // null until the first question is asked.
+  const [results, setResults] = useState<SearchResult[] | null>(null);
+  const [askError, setAskError] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [questionLength, setQuestionLength] = useState(0);
 
   // Runs once when the page first appears: ask the server for the list.
   useEffect(() => {
@@ -35,11 +41,26 @@ export default function Home() {
       .catch(() => setError("Could not load the documents."));
   }, []);
 
-  // Ask button. For now it only keeps the question; search comes next.
-  function handleAsk(event: React.FormEvent<HTMLFormElement>) {
+  // Ask button: send the question to the server and show the chunks it finds.
+  async function handleAsk(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setQuestion(String(form.get("question")).trim());
+    const question = String(form.get("question")).trim();
+
+    setAskError("");
+    setAsking(true);
+    const response = await fetch(
+      `/api/search?q=${encodeURIComponent(question)}`,
+    );
+    const result = await response.json();
+    setAsking(false);
+
+    if (!response.ok) {
+      setAskError(result.error);
+      setResults(null);
+      return;
+    }
+    setResults(result);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -127,13 +148,40 @@ export default function Home() {
       <section>
         <h2>Ask a question</h2>
         <form className={styles.form} onSubmit={handleAsk}>
-          <textarea name="question" rows={8} aria-label="Question" />
-          <button type="submit">Ask</button>
+          <textarea
+            name="question"
+            rows={8}
+            aria-label="Question"
+            maxLength={MAX_QUESTION_LENGTH}
+            onChange={(event) => setQuestionLength(event.target.value.length)}
+          />
+          <span className={styles.muted}>
+            Character limit: {questionLength}/{MAX_QUESTION_LENGTH}
+          </span>
+          <button type="submit" disabled={asking}>
+            {asking ? "Searching…" : "Ask"}
+          </button>
         </form>
-        {question && (
-          <p className={styles.muted}>
-            You asked: {question} (search is not connected yet)
+        {askError && (
+          <p className={styles.error} role="alert">
+            {askError}
           </p>
+        )}
+        {results && results.length === 0 && (
+          <p className={styles.muted}>No matching passages found.</p>
+        )}
+        {results && results.length > 0 && (
+          <ol className={styles.results}>
+            {results.map((result) => (
+              <li key={result.id}>
+                <span className={styles.muted}>
+                  {result.title} · chunk {result.chunk_index} · score{" "}
+                  {result.score.toFixed(4)}
+                </span>
+                <p>{result.content}</p>
+              </li>
+            ))}
+          </ol>
         )}
       </section>
 

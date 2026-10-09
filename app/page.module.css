@@ -110,7 +110,29 @@
   background: #c62828;
 }
 
-.form + .muted {
+.form + .results {
+  margin-top: 16px;
+  padding-left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.results li {
+  padding: 12px;
+  border: 1px solid #8884;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.results p {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap; /* keep the passage's own line breaks */
+}
+
+.muted {
   margin-top: 12px;
 }
 

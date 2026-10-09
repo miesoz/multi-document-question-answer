@@ -259,3 +259,29 @@ What was chosen, why, and what was turned down. Newest entries at the bottom.
 - **Known gap:** two people editing the same document at once. Both saves
   succeed in turn, so the second overwrites the first without warning.
   Postgres's row locks keep the tables consistent; no locking code is needed.
+
+## 2026-10-08: step 6, search
+
+### Search column and index on `chunks`
+- **Chose:** a `text_search_vec` column that Postgres fills in from each
+  chunk's text (filler words dropped, the rest cut to their root), with a GIN
+  index on it.
+- **Why the column:** the searchable form is computed once when a chunk is
+  saved, not on every question.
+- **Why the index:** it maps each word to the chunks containing it, so a
+  search does not have to check every chunk. Results are the same without
+  it; it only matters for speed as the library grows.
+- **Cost:** saving a chunk is a little slower and takes more storage. Chunks
+  are written once and searched many times.
+
+### The search query
+- **Chose:** the question goes through the same word filter as the chunks,
+  and its terms are joined with "or". Postgres's `ts_rank` scores the
+  matching chunks, and the top 5 come back with their document titles.
+- **Why:** this is the basic working version. It needs no code of ours for
+  scoring.
+- **Known limits, not yet tuned:**
+  - Uploading the same document twice fills the top 5 with duplicate passages.
+  - `ts_rank` does not give rare words more weight than common ones, so a
+    word that is in most chunks ("Holmes") counts as much as a rare one.
+  - It matches words, not meaning.
