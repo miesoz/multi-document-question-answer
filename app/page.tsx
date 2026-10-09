@@ -140,6 +140,15 @@ export default function Home() {
     setEditing(null);
   }
 
+  // The passages the answer cites, in the order the answer first uses them.
+  // Each holds a position in `results`. A passage's place in this list, plus
+  // one, is the source number the user sees: [1], [2], [3]...
+  const citedPassages = [
+    ...new Set(
+      (answer ?? []).flatMap((part) => part.citations.map((c) => c.passage)),
+    ),
+  ].filter((passage) => results?.[passage]);
+
   return (
     <main className={styles.main}>
       <h1>Multi-document Q&amp;A</h1>
@@ -169,46 +178,72 @@ export default function Home() {
         {answer && (
           <p className={styles.answer}>
             {answer.map((part, index) => (
-              <span key={index}>
+              <span
+                key={index}
+                // A statement backed by a source is underlined.
+                className={part.citations.length > 0 ? styles.cited : undefined}
+              >
                 {part.text}
-                {/* The passage numbers this part of the answer is based on. */}
-                {[...new Set(part.citations.map((c) => c.passage))].map(
-                  (passage) => (
-                    <sup key={passage}>[{passage + 1}]</sup>
-                  ),
-                )}
+                {/* One link per source this statement is based on. */}
+                {[...new Set(part.citations.map((c) => c.passage))]
+                  .filter((passage) => citedPassages.includes(passage))
+                  .map((passage) => {
+                    const number = citedPassages.indexOf(passage) + 1;
+                    return (
+                      <sup key={passage}>
+                        <a href={`#source-${number}`}>[{number}]</a>
+                      </sup>
+                    );
+                  })}
               </span>
             ))}
           </p>
         )}
-        {results && results.length > 0 && (
+        {results && citedPassages.length > 0 && (
           <>
-            <h3 className={styles.sourcesHeading}>Passages searched</h3>
+            <h3 className={styles.sourcesHeading}>Sources</h3>
             <ol className={styles.results}>
-              {results.map((result, passage) => {
+              {citedPassages.map((passage, index) => {
+                const source = results[passage];
                 // The sentences the answer quoted from this passage.
                 const quotes = (answer ?? [])
                   .flatMap((part) => part.citations)
                   .filter((citation) => citation.passage === passage)
                   .map((citation) => citation.quote.trim());
                 return (
-                  <li key={result.id}>
+                  <li key={source.id} id={`source-${index + 1}`}>
                     <span className={styles.muted}>
-                      {result.title} · chunk {result.chunk_index} · score{" "}
-                      {result.score.toFixed(4)}
-                      {quotes.length > 0 && " · cited in the answer"}
+                      {source.title} · chunk {source.chunk_index}
                     </span>
                     {[...new Set(quotes)].map((quote) => (
                       <blockquote key={quote} className={styles.quote}>
                         {quote}
                       </blockquote>
                     ))}
-                    <p>{result.content}</p>
                   </li>
                 );
               })}
             </ol>
           </>
+        )}
+        {results && results.length > 0 && (
+          // Closed by default. For checking what search returned.
+          <details className={styles.searched}>
+            <summary>
+              Show all {results.length} passages searched
+            </summary>
+            <ol className={styles.results}>
+              {results.map((result) => (
+                <li key={result.id}>
+                  <span className={styles.muted}>
+                    {result.title} · chunk {result.chunk_index} · score{" "}
+                    {result.score.toFixed(4)}
+                  </span>
+                  <p>{result.content}</p>
+                </li>
+              ))}
+            </ol>
+          </details>
         )}
       </section>
 
