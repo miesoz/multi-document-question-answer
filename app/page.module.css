@@ -5,7 +5,16 @@
   padding: 48px 16px;
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 24px;
+}
+
+/* Each section sits on its own panel. The grey is partly see-through, so it
+   comes out a little darker than a light page and a little lighter than a
+   dark one. */
+.main section {
+  padding: 20px;
+  background: #88888818;
+  border-radius: 10px;
 }
 
 .main h2 {
@@ -36,6 +45,11 @@
   border-radius: 6px;
 }
 
+/* A text box that keeps one size: no drag handle in its corner. */
+.fixedSize {
+  resize: none;
+}
+
 .main button {
   align-self: flex-start;
   padding: 8px 14px;
@@ -50,6 +64,25 @@
 .main button:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* A small turning circle shown inside a button while it waits. */
+.spinner {
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 8px;
+  vertical-align: -0.1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .list {
@@ -110,13 +143,25 @@
   background: #c62828;
 }
 
-.form + .answer {
+.answer {
   margin-top: 16px;
   padding: 16px;
   line-height: 1.6;
   border: 1px solid #8888;
   border-radius: 6px;
   white-space: pre-wrap;
+}
+
+/* The sorry message: amber, not red, because nothing went wrong. */
+.answer.notFound {
+  background: #e0a80022;
+  border-left: 4px solid #e0a800;
+}
+
+/* The previous answer, while the next one is being written. */
+.stale {
+  opacity: 0.45;
+  transition: opacity 0.2s;
 }
 
 .cited {
@@ -214,6 +259,13 @@
 .muted {
   font-size: 0.85rem;
   opacity: 0.65;
+}
+
+/* The chunk number next to a source's document title. */
+.chunkLabel {
+  margin-left: 4px;
+  font-size: 0.75rem;
+  opacity: 0.6;
 }
 
 .error {

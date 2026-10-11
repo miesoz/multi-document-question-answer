@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { AnswerPart } from "@/lib/answer";
+import { NOT_FOUND_MESSAGE } from "@/lib/messages";
 import type { SearchResult } from "@/lib/search";
 import { MAX_QUESTION_LENGTH } from "@/lib/validate";
 import styles from "./page.module.css";
@@ -83,7 +84,9 @@ export default function Home() {
     form.reset();
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: string, title: string) {
+    // Deleting cannot be undone, so ask first.
+    if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
     setError("");
     const response = await fetch(`/api/documents/${id}`, { method: "DELETE" });
     if (!response.ok) {
@@ -149,6 +152,11 @@ export default function Home() {
     ),
   ].filter((passage) => results?.[passage]);
 
+  // True when the answer is the sorry message, which gets its own colour.
+  const notFound =
+    (answer ?? []).map((part) => part.text).join("").trim() ===
+    NOT_FOUND_MESSAGE;
+
   return (
     <main className={styles.main}>
       <h1>Multi-document Q&amp;A</h1>
@@ -158,7 +166,8 @@ export default function Home() {
         <form className={styles.form} onSubmit={handleAsk}>
           <textarea
             name="question"
-            rows={8}
+            className={styles.fixedSize}
+            rows={4}
             aria-label="Question"
             maxLength={MAX_QUESTION_LENGTH}
             onChange={(event) => setQuestionLength(event.target.value.length)}
@@ -167,6 +176,7 @@ export default function Home() {
             Character limit: {questionLength}/{MAX_QUESTION_LENGTH}
           </span>
           <button type="submit" disabled={asking}>
+            {asking && <span className={styles.spinner} aria-hidden="true" />}
             {asking ? "Answering…" : "Ask"}
           </button>
         </form>
@@ -175,76 +185,86 @@ export default function Home() {
             {askError}
           </p>
         )}
-        {answer && (
-          <p className={styles.answer}>
-            {answer.map((part, index) => (
-              <span
-                key={index}
-                // A statement backed by a source is underlined.
-                className={part.citations.length > 0 ? styles.cited : undefined}
-              >
-                {part.text}
-                {/* One link per source this statement is based on. */}
-                {[...new Set(part.citations.map((c) => c.passage))]
-                  .filter((passage) => citedPassages.includes(passage))
-                  .map((passage) => {
-                    const number = citedPassages.indexOf(passage) + 1;
-                    return (
-                      <sup key={passage}>
-                        <a href={`#source-${number}`}>[{number}]</a>
-                      </sup>
-                    );
-                  })}
-              </span>
-            ))}
-          </p>
-        )}
-        {results && citedPassages.length > 0 && (
-          <>
-            <h3 className={styles.sourcesHeading}>Sources</h3>
-            <ol className={styles.results}>
-              {citedPassages.map((passage, index) => {
-                const source = results[passage];
-                // The sentences the answer quoted from this passage.
-                const quotes = (answer ?? [])
-                  .flatMap((part) => part.citations)
-                  .filter((citation) => citation.passage === passage)
-                  .map((citation) => citation.quote.trim());
-                return (
-                  <li key={source.id} id={`source-${index + 1}`}>
-                    <span className={styles.muted}>
-                      {source.title} · chunk {source.chunk_index}
-                    </span>
-                    {[...new Set(quotes)].map((quote) => (
-                      <blockquote key={quote} className={styles.quote}>
-                        {quote}
-                      </blockquote>
-                    ))}
-                  </li>
-                );
-              })}
-            </ol>
-          </>
-        )}
-        {results && results.length > 0 && (
-          // Closed by default. For checking what search returned.
-          <details className={styles.searched}>
-            <summary>
-              Show all {results.length} passages searched
-            </summary>
-            <ol className={styles.results}>
-              {results.map((result) => (
-                <li key={result.id}>
-                  <span className={styles.muted}>
-                    {result.title} · chunk {result.chunk_index} · score{" "}
-                    {result.score.toFixed(4)}
-                  </span>
-                  <p>{result.content}</p>
-                </li>
+        {/* While a new question is being answered, the previous answer stays
+            on screen, faded to show it is the old one. */}
+        <div className={asking ? styles.stale : undefined}>
+          {answer && (
+            <p
+              className={
+                notFound ? `${styles.answer} ${styles.notFound}` : styles.answer
+              }
+            >
+              {answer.map((part, index) => (
+                <span
+                  key={index}
+                  // A statement backed by a source is underlined.
+                  className={part.citations.length > 0 ? styles.cited : undefined}
+                >
+                  {part.text}
+                  {/* One link per source this statement is based on. */}
+                  {[...new Set(part.citations.map((c) => c.passage))]
+                    .filter((passage) => citedPassages.includes(passage))
+                    .map((passage) => {
+                      const number = citedPassages.indexOf(passage) + 1;
+                      return (
+                        <sup key={passage}>
+                          <a href={`#source-${number}`}>[{number}]</a>
+                        </sup>
+                      );
+                    })}
+                </span>
               ))}
-            </ol>
-          </details>
-        )}
+            </p>
+          )}
+          {results && citedPassages.length > 0 && (
+            <>
+              <h3 className={styles.sourcesHeading}>Sources</h3>
+              <ol className={styles.results}>
+                {citedPassages.map((passage, index) => {
+                  const source = results[passage];
+                  // The sentences the answer quoted from this passage.
+                  const quotes = (answer ?? [])
+                    .flatMap((part) => part.citations)
+                    .filter((citation) => citation.passage === passage)
+                    .map((citation) => citation.quote.trim());
+                  return (
+                    <li key={source.id} id={`source-${index + 1}`}>
+                      <strong>{source.title}</strong>{" "}
+                      <span className={styles.chunkLabel}>
+                        chunk {source.chunk_index}
+                      </span>
+                      {[...new Set(quotes)].map((quote) => (
+                        <blockquote key={quote} className={styles.quote}>
+                          {quote}
+                        </blockquote>
+                      ))}
+                    </li>
+                  );
+                })}
+              </ol>
+            </>
+          )}
+          {results && results.length > 0 && (
+            // Closed by default. For checking what search returned.
+            <details className={styles.searched}>
+              <summary>
+                Show all {results.length} passages searched
+              </summary>
+              <ol className={styles.results}>
+                {results.map((result) => (
+                  <li key={result.id}>
+                    <strong>{result.title}</strong>{" "}
+                    <span className={styles.chunkLabel}>
+                      chunk {result.chunk_index} · score{" "}
+                      {result.score.toFixed(4)}
+                    </span>
+                    <p>{result.content}</p>
+                  </li>
+                ))}
+              </ol>
+            </details>
+          )}
+        </div>
       </section>
 
       <section>
@@ -256,13 +276,14 @@ export default function Home() {
           </label>
           <label>
             Paste text
-            <textarea name="content" rows={8} />
+            <textarea name="content" className={styles.fixedSize} rows={8} />
           </label>
           <label>
             Or choose a .txt or .md file
             <input name="file" type="file" accept=".txt,.md" />
           </label>
           <button type="submit" disabled={saving}>
+            {saving && <span className={styles.spinner} aria-hidden="true" />}
             {saving ? "Saving…" : "Add document"}
           </button>
         </form>
@@ -291,9 +312,9 @@ export default function Home() {
                 </div>
                 <div className={styles.actions}>
                   <button type="button" onClick={() => handleEdit(doc.id)}>
-                    Edit
+                    View / Edit
                   </button>
-                  <button type="button" onClick={() => handleDelete(doc.id)}>
+                  <button type="button" onClick={() => handleDelete(doc.id, doc.title)}>
                     Delete
                   </button>
                 </div>
@@ -336,6 +357,7 @@ export default function Home() {
               />
             </label>
             <button type="submit" disabled={editSaving}>
+              {editSaving && <span className={styles.spinner} aria-hidden="true" />}
               {editSaving ? "Saving…" : "Save"}
             </button>
           </form>
