@@ -1,10 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { NOT_FOUND_MESSAGE } from "@/lib/messages";
 import type { SearchResult } from "@/lib/search";
-
-// Shown when the passages do not hold the answer, and when search finds no
-// passages at all (in which case the model is not called).
-export const NOT_FOUND_MESSAGE =
-  "Sorry, I could not find that in the uploaded documents. Please try rephrasing.";
 
 // The model that writes the answers.
 const MODEL = "claude-haiku-5-5";
